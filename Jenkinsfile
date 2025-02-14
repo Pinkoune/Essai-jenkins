@@ -2,13 +2,11 @@ pipeline {
     agent any  // Jenkins peut s'exécuter sur n'importe quel agent
 
     environment {
-        FRONT_IMAGE = "tonDockerHub/front-app"
-        BACK_IMAGE = "tonDockerHub/back-app"
-        IMAGE_TAG = "latest"
+        NODEJS_HOME = tool 'NodeJS'
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 git 'https://github.com/Pinkoune/Essai-jenkins.git'  // Remplace par ton repo Git
             }
@@ -47,25 +45,27 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Start Applications') {
             steps {
-                sh 'docker build -t $FRONT_IMAGE:$IMAGE_TAG front/'
-                sh 'docker build -t $BACK_IMAGE:$IMAGE_TAG api/'
+                parallel (
+                    "Frontend": {
+                        dir('front') {
+                            sh 'npm start &'
+                        }
+                    },
+                    "Backend": {
+                        dir('api') {
+                            sh 'npm start &'
+                        }
+                    }
+                )
             }
         }
+    }
 
-        stage('Push Docker Images') {
-            steps {
-                sh 'docker push $FRONT_IMAGE:$IMAGE_TAG'
-                sh 'docker push $BACK_IMAGE:$IMAGE_TAG'
-            }
-        }
-
-        stage('Deploy Containers') {
-            steps {
-                sh 'docker run -d -p 3000:3000 --name front-app $FRONT_IMAGE:$IMAGE_TAG'
-                sh 'docker run -d -p 5000:5000 --name back-app $BACK_IMAGE:$IMAGE_TAG'
-            }
+    post {
+        always {
+            echo 'Pipeline terminé.'
         }
     }
 }
